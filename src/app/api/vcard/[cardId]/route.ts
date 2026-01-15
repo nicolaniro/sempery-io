@@ -118,9 +118,10 @@ function generateVCard(profile: {
     lines.push(`X-SOCIALPROFILE;TYPE=github:${profile.socials.github}`);
   }
 
-  // Photo (base64 encoded) - iOS compatible format, all on one line
+  // Photo (base64 encoded) - iOS vCard 3.0 format
+  // Format: PHOTO;ENCODING=b;TYPE=JPEG:base64data
   if (profile.photoBase64) {
-    lines.push(`PHOTO;TYPE=JPEG;ENCODING=b:${profile.photoBase64}`);
+    lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${profile.photoBase64}`);
   }
 
   lines.push("END:VCARD");
