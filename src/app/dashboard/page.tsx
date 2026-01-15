@@ -139,7 +139,7 @@ export default function DashboardPage() {
     setIsCreating(true);
   };
 
-  // Handle file upload
+  // Handle file upload with server-side optimization
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: "photoUrl" | "logoUrl" | "backgroundImageUrl") => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -148,27 +148,29 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      // Get upload URL from Convex
-      const uploadUrl = await generateUploadUrl();
+      // Determine image type for optimization
+      const typeMap = {
+        photoUrl: "photo",
+        logoUrl: "logo",
+        backgroundImageUrl: "background"
+      };
 
-      // Upload file
-      const result = await fetch(uploadUrl, {
+      // Upload through our API which resizes the image
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", typeMap[field]);
+
+      const result = await fetch("/api/upload", {
         method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
+        body: formData,
       });
 
       if (!result.ok) throw new Error("Upload failed");
 
-      const { storageId } = await result.json();
+      const { url } = await result.json();
 
-      // Get the actual public URL from Convex
-      const publicUrl = await getFileUrl({ storageId });
-
-      if (!publicUrl) throw new Error("Failed to get file URL");
-
-      setForm({ ...form, [field]: publicUrl });
-      setSuccess("Immagine caricata!");
+      setForm({ ...form, [field]: url });
+      setSuccess("Immagine caricata e ottimizzata!");
       setTimeout(() => setSuccess(null), 2000);
     } catch (err) {
       setError("Errore nel caricamento dell'immagine");
