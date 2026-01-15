@@ -2,21 +2,26 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Id } from "@convex/_generated/dataModel";
 import { Profile } from "@/types";
-import { Plus, Eye, LogOut } from "lucide-react";
+import { Plus, Eye, Upload, X, ChevronDown, ChevronUp } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
 export default function DashboardPage() {
   const profiles = useQuery(api.profiles.list);
   const createProfile = useMutation(api.profiles.create);
   const updateProfile = useMutation(api.profiles.update);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
 
   const [selectedProfileId, setSelectedProfileId] = useState<Id<"profiles"> | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [showBranding, setShowBranding] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get cards for selected profile
   const profileCards = useQuery(
@@ -43,7 +48,18 @@ export default function DashboardPage() {
     tiktok: "",
     youtube: "",
     theme: "dark" as "light" | "dark",
-    accentColor: "#3b82f6",
+    accentColor: "#10b981",
+    // Branding
+    backgroundColor: "",
+    backgroundGradient: "",
+    backgroundImageUrl: "",
+    logoUrl: "",
+    logoPosition: "bottom" as "top" | "bottom",
+    textColor: "",
+    secondaryTextColor: "",
+    buttonStyle: "solid" as "solid" | "outline" | "gradient",
+    buttonRadius: "lg" as "none" | "sm" | "md" | "lg" | "full",
+    cardStyle: "solid" as "solid" | "glass" | "transparent",
   });
 
   const selectedProfile = (profiles as Profile[] | undefined)?.find((p) => p._id === selectedProfileId);
@@ -68,7 +84,17 @@ export default function DashboardPage() {
         tiktok: selectedProfile.socials?.tiktok || "",
         youtube: selectedProfile.socials?.youtube || "",
         theme: selectedProfile.theme || "dark",
-        accentColor: selectedProfile.accentColor || "#3b82f6",
+        accentColor: selectedProfile.accentColor || "#10b981",
+        backgroundColor: selectedProfile.branding?.backgroundColor || "",
+        backgroundGradient: selectedProfile.branding?.backgroundGradient || "",
+        backgroundImageUrl: selectedProfile.branding?.backgroundImageUrl || "",
+        logoUrl: selectedProfile.branding?.logoUrl || "",
+        logoPosition: selectedProfile.branding?.logoPosition || "bottom",
+        textColor: selectedProfile.branding?.textColor || "",
+        secondaryTextColor: selectedProfile.branding?.secondaryTextColor || "",
+        buttonStyle: selectedProfile.branding?.buttonStyle || "solid",
+        buttonRadius: selectedProfile.branding?.buttonRadius || "lg",
+        cardStyle: selectedProfile.branding?.cardStyle || "solid",
       });
       setIsCreating(false);
     }
@@ -92,7 +118,17 @@ export default function DashboardPage() {
       tiktok: "",
       youtube: "",
       theme: "dark",
-      accentColor: "#3b82f6",
+      accentColor: "#10b981",
+      backgroundColor: "",
+      backgroundGradient: "",
+      backgroundImageUrl: "",
+      logoUrl: "",
+      logoPosition: "bottom",
+      textColor: "",
+      secondaryTextColor: "",
+      buttonStyle: "solid",
+      buttonRadius: "lg",
+      cardStyle: "solid",
     });
   };
 
@@ -100,6 +136,42 @@ export default function DashboardPage() {
     resetForm();
     setSelectedProfileId(null);
     setIsCreating(true);
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: "photoUrl" | "logoUrl" | "backgroundImageUrl") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      // Get upload URL from Convex
+      const uploadUrl = await generateUploadUrl();
+
+      // Upload file
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!result.ok) throw new Error("Upload failed");
+
+      const { storageId } = await result.json();
+
+      // Get the public URL
+      const publicUrl = `https://fortunate-dachshund-583.convex.cloud/api/storage/${storageId}`;
+
+      setForm({ ...form, [field]: publicUrl });
+      setSuccess("Immagine caricata!");
+      setTimeout(() => setSuccess(null), 2000);
+    } catch (err) {
+      setError("Errore nel caricamento dell'immagine");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -116,8 +188,20 @@ export default function DashboardPage() {
         youtube: form.youtube || undefined,
       };
 
+      const branding = {
+        backgroundColor: form.backgroundColor || undefined,
+        backgroundGradient: form.backgroundGradient || undefined,
+        backgroundImageUrl: form.backgroundImageUrl || undefined,
+        logoUrl: form.logoUrl || undefined,
+        logoPosition: form.logoPosition,
+        textColor: form.textColor || undefined,
+        secondaryTextColor: form.secondaryTextColor || undefined,
+        buttonStyle: form.buttonStyle,
+        buttonRadius: form.buttonRadius,
+        cardStyle: form.cardStyle,
+      };
+
       if (isCreating) {
-        // Create new profile
         const profileId = await createProfile({
           slug: form.slug,
           displayName: form.displayName,
@@ -136,7 +220,6 @@ export default function DashboardPage() {
         setIsCreating(false);
         setSuccess("Profilo creato!");
       } else if (selectedProfileId) {
-        // Update existing profile
         await updateProfile({
           id: selectedProfileId,
           displayName: form.displayName,
@@ -150,6 +233,7 @@ export default function DashboardPage() {
           socials,
           theme: form.theme,
           accentColor: form.accentColor || undefined,
+          branding,
         });
         setSuccess("Profilo aggiornato!");
       }
@@ -157,6 +241,53 @@ export default function DashboardPage() {
       setError(e instanceof Error ? e.message : "Errore sconosciuto");
     }
   };
+
+  // Image upload component
+  const ImageUpload = ({
+    label,
+    value,
+    field,
+    preview = true
+  }: {
+    label: string;
+    value: string;
+    field: "photoUrl" | "logoUrl" | "backgroundImageUrl";
+    preview?: boolean;
+  }) => (
+    <div>
+      <label className="block text-sm text-zinc-400 mb-1">{label}</label>
+      <div className="flex gap-2 items-center">
+        {preview && value && (
+          <img src={value} alt="" className="w-10 h-10 rounded-lg object-cover" />
+        )}
+        <input
+          type="url"
+          placeholder="https://... o carica"
+          value={value}
+          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+          className="flex-1 bg-zinc-800 rounded-lg px-4 py-2 text-white placeholder-zinc-500 text-sm"
+        />
+        <label className="px-3 py-2 bg-zinc-700 rounded-lg hover:bg-zinc-600 transition-colors cursor-pointer">
+          <Upload className="w-4 h-4" />
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, field)}
+            disabled={uploading}
+          />
+        </label>
+        {value && (
+          <button
+            onClick={() => setForm({ ...form, [field]: "" })}
+            className="p-2 bg-zinc-700 rounded-lg hover:bg-red-600 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6">
@@ -178,6 +309,12 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {uploading && (
+          <div className="bg-blue-500/20 border border-blue-500 text-blue-200 px-4 py-3 rounded-lg mb-4">
+            Caricamento in corso...
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Profile List */}
           <div className="md:col-span-1">
@@ -186,7 +323,7 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold">Profili</h2>
                 <button
                   onClick={handleCreateNew}
-                  className="p-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="p-2 bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -199,7 +336,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedProfileId(profile._id)}
                     className={`w-full text-left p-3 rounded-lg transition-colors ${
                       selectedProfileId === profile._id
-                        ? "bg-blue-600"
+                        ? "bg-emerald-600"
                         : "bg-zinc-800 hover:bg-zinc-700"
                     }`}
                   >
@@ -240,7 +377,7 @@ export default function DashboardPage() {
                   <div className="bg-zinc-800 rounded-lg p-4 mb-6">
                     <h3 className="font-medium mb-2">URL Card NFC</h3>
                     <div className="flex gap-2 items-center">
-                      <code className="flex-1 bg-zinc-900 rounded-lg px-4 py-2 text-green-400 text-sm">
+                      <code className="flex-1 bg-zinc-900 rounded-lg px-4 py-2 text-emerald-400 text-sm">
                         sempery.io/c/{primaryCardId}
                       </code>
                       <button
@@ -249,14 +386,11 @@ export default function DashboardPage() {
                           setSuccess("URL copiato!");
                           setTimeout(() => setSuccess(null), 2000);
                         }}
-                        className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        className="px-4 py-2 bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors text-sm"
                       >
                         Copia
                       </button>
                     </div>
-                    <p className="text-sm text-zinc-500 mt-2">
-                      Scrivi questo URL sulla card NFC con NFC Tools
-                    </p>
                   </div>
                 )}
 
@@ -316,24 +450,16 @@ export default function DashboardPage() {
                       placeholder="Una breve descrizione..."
                       value={form.bio}
                       onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                      rows={3}
+                      rows={2}
                       className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white placeholder-zinc-500 resize-none"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-zinc-400 mb-1">URL Foto</label>
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={form.photoUrl}
-                      onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
-                      className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white placeholder-zinc-500"
-                    />
-                  </div>
+                  {/* Photo Upload */}
+                  <ImageUpload label="Foto Profilo" value={form.photoUrl} field="photoUrl" />
 
                   {/* Contact Info */}
-                  <h3 className="text-lg font-medium pt-4">Contatti</h3>
+                  <h3 className="text-lg font-medium pt-4 border-t border-zinc-800">Contatti</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm text-zinc-400 mb-1">Telefono</label>
@@ -369,7 +495,7 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Social Links */}
-                  <h3 className="text-lg font-medium pt-4">Social</h3>
+                  <h3 className="text-lg font-medium pt-4 border-t border-zinc-800">Social</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm text-zinc-400 mb-1">LinkedIn</label>
@@ -411,30 +537,10 @@ export default function DashboardPage() {
                         className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white placeholder-zinc-500"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm text-zinc-400 mb-1">TikTok</label>
-                      <input
-                        type="url"
-                        placeholder="https://tiktok.com/@..."
-                        value={form.tiktok}
-                        onChange={(e) => setForm({ ...form, tiktok: e.target.value })}
-                        className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white placeholder-zinc-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-zinc-400 mb-1">YouTube</label>
-                      <input
-                        type="url"
-                        placeholder="https://youtube.com/@..."
-                        value={form.youtube}
-                        onChange={(e) => setForm({ ...form, youtube: e.target.value })}
-                        className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white placeholder-zinc-500"
-                      />
-                    </div>
                   </div>
 
                   {/* Appearance */}
-                  <h3 className="text-lg font-medium pt-4">Aspetto</h3>
+                  <h3 className="text-lg font-medium pt-4 border-t border-zinc-800">Aspetto</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm text-zinc-400 mb-1">Tema</label>
@@ -466,11 +572,120 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
+                  {/* Branding Section (Collapsible) */}
+                  {!isCreating && (
+                    <>
+                      <button
+                        onClick={() => setShowBranding(!showBranding)}
+                        className="w-full flex items-center justify-between py-3 px-4 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors mt-4"
+                      >
+                        <span className="font-medium">Branding Avanzato</span>
+                        {showBranding ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                      </button>
+
+                      {showBranding && (
+                        <div className="space-y-4 p-4 bg-zinc-800/50 rounded-lg">
+                          {/* Logo */}
+                          <ImageUpload label="Logo Azienda" value={form.logoUrl} field="logoUrl" />
+
+                          <div>
+                            <label className="block text-sm text-zinc-400 mb-1">Posizione Logo</label>
+                            <select
+                              value={form.logoPosition}
+                              onChange={(e) => setForm({ ...form, logoPosition: e.target.value as "top" | "bottom" })}
+                              className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white"
+                            >
+                              <option value="top">In alto</option>
+                              <option value="bottom">In basso</option>
+                            </select>
+                          </div>
+
+                          {/* Background */}
+                          <div>
+                            <label className="block text-sm text-zinc-400 mb-1">Colore Sfondo</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="color"
+                                value={form.backgroundColor || "#09090b"}
+                                onChange={(e) => setForm({ ...form, backgroundColor: e.target.value })}
+                                className="w-12 h-10 bg-zinc-800 rounded-lg cursor-pointer"
+                              />
+                              <input
+                                type="text"
+                                placeholder="#09090b"
+                                value={form.backgroundColor}
+                                onChange={(e) => setForm({ ...form, backgroundColor: e.target.value })}
+                                className="flex-1 bg-zinc-800 rounded-lg px-4 py-2 text-white placeholder-zinc-500"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm text-zinc-400 mb-1">Gradiente CSS</label>
+                            <input
+                              type="text"
+                              placeholder="linear-gradient(135deg, #10b981, #059669)"
+                              value={form.backgroundGradient}
+                              onChange={(e) => setForm({ ...form, backgroundGradient: e.target.value })}
+                              className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white placeholder-zinc-500"
+                            />
+                          </div>
+
+                          <ImageUpload label="Immagine Sfondo" value={form.backgroundImageUrl} field="backgroundImageUrl" preview={false} />
+
+                          {/* Button Style */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm text-zinc-400 mb-1">Stile Bottone</label>
+                              <select
+                                value={form.buttonStyle}
+                                onChange={(e) => setForm({ ...form, buttonStyle: e.target.value as "solid" | "outline" | "gradient" })}
+                                className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white"
+                              >
+                                <option value="solid">Solido</option>
+                                <option value="outline">Contorno</option>
+                                <option value="gradient">Gradiente</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm text-zinc-400 mb-1">Bordi Bottone</label>
+                              <select
+                                value={form.buttonRadius}
+                                onChange={(e) => setForm({ ...form, buttonRadius: e.target.value as "none" | "sm" | "md" | "lg" | "full" })}
+                                className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white"
+                              >
+                                <option value="none">Squadrato</option>
+                                <option value="sm">Leggero</option>
+                                <option value="md">Medio</option>
+                                <option value="lg">Arrotondato</option>
+                                <option value="full">Pillola</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm text-zinc-400 mb-1">Stile Card</label>
+                            <select
+                              value={form.cardStyle}
+                              onChange={(e) => setForm({ ...form, cardStyle: e.target.value as "solid" | "glass" | "transparent" })}
+                              className="w-full bg-zinc-800 rounded-lg px-4 py-2 text-white"
+                            >
+                              <option value="solid">Solido</option>
+                              <option value="glass">Glass/Blur</option>
+                              <option value="transparent">Trasparente</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
                   {/* Save Button */}
                   <div className="pt-6">
                     <button
                       onClick={handleSave}
-                      className="w-full py-3 bg-blue-600 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                      disabled={uploading}
+                      className="w-full py-3 bg-emerald-600 rounded-lg font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
                     >
                       {isCreating ? "Crea Profilo" : "Salva Modifiche"}
                     </button>
@@ -482,7 +697,7 @@ export default function DashboardPage() {
                 <p className="text-zinc-500 mb-4">Seleziona un profilo o creane uno nuovo</p>
                 <button
                   onClick={handleCreateNew}
-                  className="px-6 py-3 bg-blue-600 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-emerald-600 rounded-lg font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2"
                 >
                   <Plus className="w-5 h-5" />
                   Nuovo Profilo
