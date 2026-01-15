@@ -5,7 +5,8 @@ import { api } from "@convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "@convex/_generated/dataModel";
 import { Profile } from "@/types";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, LogOut } from "lucide-react";
+import { UserButton } from "@clerk/nextjs";
 
 export default function DashboardPage() {
   const profiles = useQuery(api.profiles.list);
@@ -160,7 +161,10 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Sempery Dashboard</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Sempery Dashboard</h1>
+          <UserButton afterSignOutUrl="/" />
+        </div>
 
         {/* Error/Success messages */}
         {error && (
