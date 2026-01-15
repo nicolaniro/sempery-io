@@ -16,11 +16,6 @@ import {
   Download,
 } from "lucide-react";
 
-// Convex HTTP endpoint URL for vCard download
-const CONVEX_SITE_URL = process.env.NEXT_PUBLIC_CONVEX_URL?.replace(
-  ".convex.cloud",
-  ".convex.site"
-);
 
 interface PageProps {
   params: Promise<{ cardId: string }>;
@@ -70,9 +65,7 @@ export default function CardProfilePage({ params }: PageProps) {
   }, [profile?.photoUrl]);
 
   // Server-side vCard URL (most reliable for all devices)
-  const vcardUrl = cardId && CONVEX_SITE_URL
-    ? `${CONVEX_SITE_URL}/vcard/${cardId}`
-    : null;
+  const vcardUrl = cardId ? `/api/vcard/${cardId}` : null;
 
   // Client-side fallback for when server endpoint fails
   const handleSaveContactFallback = async () => {
