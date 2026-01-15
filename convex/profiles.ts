@@ -1,6 +1,16 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+// Generate short random ID (6 chars)
+function generateShortId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 export const getBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
@@ -58,7 +68,34 @@ export const create = mutation({
       throw new Error("Slug already exists");
     }
 
-    return await ctx.db.insert("profiles", args);
+    // Create profile
+    const profileId = await ctx.db.insert("profiles", args);
+
+    // Generate unique short card ID
+    let cardId = generateShortId();
+    let cardExists = await ctx.db
+      .query("cards")
+      .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
+      .first();
+
+    // Retry if collision (rare)
+    while (cardExists) {
+      cardId = generateShortId();
+      cardExists = await ctx.db
+        .query("cards")
+        .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
+        .first();
+    }
+
+    // Create card automatically
+    await ctx.db.insert("cards", {
+      cardId,
+      profileId,
+      isActive: true,
+      tapCount: 0,
+    });
+
+    return profileId;
   },
 });
 

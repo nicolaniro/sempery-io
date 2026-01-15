@@ -5,20 +5,24 @@ import { api } from "../../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 import { Profile } from "@/types";
-import { Plus, CreditCard, Eye, Trash2 } from "lucide-react";
+import { Plus, Eye } from "lucide-react";
 
 export default function DashboardPage() {
   const profiles = useQuery(api.profiles.list);
   const createProfile = useMutation(api.profiles.create);
   const updateProfile = useMutation(api.profiles.update);
-  const createCard = useMutation(api.cards.create);
 
   const [selectedProfileId, setSelectedProfileId] = useState<Id<"profiles"> | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [showLinkCard, setShowLinkCard] = useState(false);
-  const [newCardId, setNewCardId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Get cards for selected profile
+  const profileCards = useQuery(
+    api.cards.getByProfileId,
+    selectedProfileId ? { profileId: selectedProfileId } : "skip"
+  );
+  const primaryCardId = profileCards?.[0]?.cardId;
 
   // Form state
   const [form, setForm] = useState({
@@ -153,23 +157,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLinkCard = async () => {
-    if (!selectedProfileId || !newCardId.trim()) return;
-
-    setError(null);
-    try {
-      await createCard({
-        cardId: newCardId.trim(),
-        profileId: selectedProfileId,
-      });
-      setSuccess(`Card ${newCardId} collegata!`);
-      setNewCardId("");
-      setShowLinkCard(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore nel collegamento della card");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-6">
       <div className="max-w-4xl mx-auto">
@@ -232,48 +219,39 @@ export default function DashboardPage() {
                   <h2 className="text-xl font-semibold">
                     {isCreating ? "Nuovo Profilo" : "Modifica Profilo"}
                   </h2>
-                  {selectedProfileId && (
-                    <div className="flex gap-2">
-                      <a
-                        href={`/c/test-${selectedProfile?.slug}`}
-                        target="_blank"
-                        className="p-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
-                        title="Anteprima (richiede card collegata)"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </a>
-                      <button
-                        onClick={() => setShowLinkCard(!showLinkCard)}
-                        className="p-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
-                        title="Collega Card"
-                      >
-                        <CreditCard className="w-4 h-4" />
-                      </button>
-                    </div>
+                  {selectedProfileId && primaryCardId && (
+                    <a
+                      href={`/c/${primaryCardId}`}
+                      target="_blank"
+                      className="p-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
+                      title="Visualizza profilo"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </a>
                   )}
                 </div>
 
-                {/* Link Card Section */}
-                {showLinkCard && (
+                {/* Card URL Section */}
+                {primaryCardId && (
                   <div className="bg-zinc-800 rounded-lg p-4 mb-6">
-                    <h3 className="font-medium mb-3">Collega Card NFC</h3>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="ID della card (es. abc123)"
-                        value={newCardId}
-                        onChange={(e) => setNewCardId(e.target.value)}
-                        className="flex-1 bg-zinc-700 rounded-lg px-4 py-2 text-white placeholder-zinc-500"
-                      />
+                    <h3 className="font-medium mb-2">URL Card NFC</h3>
+                    <div className="flex gap-2 items-center">
+                      <code className="flex-1 bg-zinc-900 rounded-lg px-4 py-2 text-green-400 text-sm">
+                        sempery.io/c/{primaryCardId}
+                      </code>
                       <button
-                        onClick={handleLinkCard}
-                        className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://sempery.io/c/${primaryCardId}`);
+                          setSuccess("URL copiato!");
+                          setTimeout(() => setSuccess(null), 2000);
+                        }}
+                        className="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-sm"
                       >
-                        Collega
+                        Copia
                       </button>
                     </div>
                     <p className="text-sm text-zinc-500 mt-2">
-                      La card aprirà: sempery.io/c/{newCardId || "ID_CARD"}
+                      Scrivi questo URL sulla card NFC con NFC Tools
                     </p>
                   </div>
                 )}
