@@ -78,55 +78,100 @@ export function generateVCard(data: VCardData): string {
 }
 
 export async function downloadVCard(vcard: string, filename: string) {
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = isIOS || isAndroid;
 
-  // Create file for sharing/downloading
-  const file = new File([vcard], `${filename}.vcf`, { type: "text/vcard" });
+  // Detect in-app browsers (Instagram, Facebook, LinkedIn, Twitter, etc.)
+  const isInAppBrowser = /FBAN|FBAV|Instagram|LinkedIn|Twitter|Line|MicroMessenger|Snapchat/i.test(ua);
+
+  // Detect Chrome on iOS (CriOS)
+  const isChromeIOS = /CriOS/i.test(ua);
+
+  // Detect Firefox on iOS (FxiOS)
+  const isFirefoxIOS = /FxiOS/i.test(ua);
 
   // Try Web Share API first on mobile (most reliable for iOS/Android)
-  if (isMobile && navigator.share && navigator.canShare?.({ files: [file] })) {
+  // Skip for in-app browsers as they often have restricted Web Share support
+  if (isMobile && !isInAppBrowser && navigator.share) {
     try {
-      await navigator.share({
-        files: [file],
-        title: filename,
-      });
-      return; // Success
+      const file = new File([vcard], `${filename}.vcf`, { type: "text/vcard" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: filename,
+        });
+        return; // Success
+      }
     } catch (err) {
       // User cancelled or share failed, fall through to fallback
       if ((err as Error).name === "AbortError") {
         return; // User cancelled, don't try fallback
       }
+      // Other errors: continue to fallback
     }
   }
 
-  // Fallback: Create blob and download
+  // Create blob for download
   const blob = new Blob([vcard], { type: "text/vcard" });
-  const url = URL.createObjectURL(blob);
 
+  // For iOS (Safari, Chrome, Firefox, and in-app browsers)
   if (isIOS) {
-    // iOS fallback: open in new tab - Safari recognizes vCard MIME type
-    const link = document.createElement("a");
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
+    // Try blob URL approach first
+    const url = URL.createObjectURL(blob);
+
+    if (isInAppBrowser) {
+      // In-app browsers: try window.open which may open external browser
+      const newWindow = window.open(url, "_blank");
+      if (!newWindow) {
+        // Popup blocked - try location change as last resort
+        window.location.href = url;
+      }
+    } else if (isChromeIOS || isFirefoxIOS) {
+      // Chrome/Firefox iOS: Use anchor with target="_blank"
+      // These browsers handle blob URLs better than Safari
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 100);
-  } else {
-    // Desktop & Android fallback: standard download
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${filename}.vcf`;
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
+    } else {
+      // Safari iOS: anchor click works best
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 100);
+    }
+
+    // Clean up blob URL after delay
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return;
   }
+
+  // Android and Desktop
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${filename}.vcf`;
+  link.style.display = "none";
+  document.body.appendChild(link);
+
+  if (isInAppBrowser && isAndroid) {
+    // Android in-app browsers might not support download attribute
+    // Try opening in new tab instead
+    link.target = "_blank";
+    link.removeAttribute("download");
+  }
+
+  link.click();
+
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 100);
 }
