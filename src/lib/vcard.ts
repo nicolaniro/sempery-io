@@ -77,24 +77,56 @@ export function generateVCard(data: VCardData): string {
   return lines.join("\r\n");
 }
 
-export function downloadVCard(vcard: string, filename: string) {
-  // Check if mobile
+export async function downloadVCard(vcard: string, filename: string) {
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-  if (isMobile) {
-    // For mobile: use data URL which works better with iOS/Android
-    const dataUrl = `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`;
-    window.location.href = dataUrl;
+  // Create file for sharing/downloading
+  const file = new File([vcard], `${filename}.vcf`, { type: "text/vcard" });
+
+  // Try Web Share API first on mobile (most reliable for iOS/Android)
+  if (isMobile && navigator.share && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: filename,
+      });
+      return; // Success
+    } catch (err) {
+      // User cancelled or share failed, fall through to fallback
+      if ((err as Error).name === "AbortError") {
+        return; // User cancelled, don't try fallback
+      }
+    }
+  }
+
+  // Fallback: Create blob and download
+  const blob = new Blob([vcard], { type: "text/vcard" });
+  const url = URL.createObjectURL(blob);
+
+  if (isIOS) {
+    // iOS fallback: open in new tab - Safari recognizes vCard MIME type
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
   } else {
-    // For desktop: use blob download
-    const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    // Desktop & Android fallback: standard download
     const link = document.createElement("a");
     link.href = url;
     link.download = `${filename}.vcf`;
+    link.style.display = "none";
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
   }
 }

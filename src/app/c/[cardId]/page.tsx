@@ -63,7 +63,7 @@ export default function CardProfilePage({ params }: PageProps) {
     }
   }, [profile?.photoUrl]);
 
-  const handleSaveContact = () => {
+  const handleSaveContact = async () => {
     if (!profile) return;
 
     const vcard = generateVCard({
@@ -77,7 +77,7 @@ export default function CardProfilePage({ params }: PageProps) {
       socials: profile.socials,
     });
 
-    downloadVCard(vcard, profile.displayName.replace(/\s+/g, "_"));
+    await downloadVCard(vcard, profile.displayName.replace(/\s+/g, "_"));
   };
 
   // Loading state
