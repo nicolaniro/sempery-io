@@ -13,6 +13,20 @@ function escapeVCard(str: string): string {
     .replace(/\n/g, "\\n");
 }
 
+// Fetch image and convert to base64
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    return base64;
+  } catch {
+    return null;
+  }
+}
+
 // Generate vCard string from profile data
 function generateVCard(profile: {
   displayName: string;
@@ -21,6 +35,7 @@ function generateVCard(profile: {
   phone?: string;
   contactEmail?: string;
   website?: string;
+  photoBase64?: string;
   socials?: {
     linkedin?: string;
     instagram?: string;
@@ -79,6 +94,15 @@ function generateVCard(profile: {
     lines.push(`X-SOCIALPROFILE;TYPE=github:${profile.socials.github}`);
   }
 
+  // Photo (base64 encoded, split into 75-char lines for vCard compliance)
+  if (profile.photoBase64) {
+    const photoLines = profile.photoBase64.match(/.{1,75}/g) || [];
+    lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${photoLines[0]}`);
+    for (let i = 1; i < photoLines.length; i++) {
+      lines.push(` ${photoLines[i]}`);
+    }
+  }
+
   lines.push("END:VCARD");
 
   return lines.join("\r\n");
@@ -117,6 +141,15 @@ export async function GET(
       );
     }
 
+    // Fetch photo if available
+    let photoBase64: string | undefined;
+    if (profile.photoUrl) {
+      const base64 = await fetchImageAsBase64(profile.photoUrl);
+      if (base64) {
+        photoBase64 = base64;
+      }
+    }
+
     // Generate vCard
     const vcard = generateVCard({
       displayName: profile.displayName,
@@ -125,6 +158,7 @@ export async function GET(
       phone: profile.phone,
       contactEmail: profile.contactEmail,
       website: profile.website,
+      photoBase64,
       socials: profile.socials,
     });
 
