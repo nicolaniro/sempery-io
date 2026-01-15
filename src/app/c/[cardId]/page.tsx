@@ -113,16 +113,96 @@ export default function CardProfilePage({ params }: PageProps) {
     );
   }
 
+  // Extract branding settings
+  const branding = profile.branding || {};
   const isDark = profile.theme !== "light";
-  const accentColor = profile.accentColor || "#3b82f6";
+  const accentColor = profile.accentColor || "#10b981";
+
+  // Background styles
+  const getBackgroundStyle = () => {
+    const style: React.CSSProperties = {};
+
+    if (branding.backgroundImageUrl) {
+      style.backgroundImage = `url(${branding.backgroundImageUrl})`;
+      style.backgroundSize = "cover";
+      style.backgroundPosition = "center";
+    } else if (branding.backgroundGradient) {
+      style.background = branding.backgroundGradient;
+    } else if (branding.backgroundColor) {
+      style.backgroundColor = branding.backgroundColor;
+    } else {
+      style.backgroundColor = isDark ? "#09090b" : "#fafafa";
+    }
+
+    return style;
+  };
+
+  // Text colors
+  const textColor = branding.textColor || (isDark ? "#ffffff" : "#18181b");
+  const secondaryTextColor = branding.secondaryTextColor || (isDark ? "#a1a1aa" : "#71717a");
+
+  // Button styles
+  const getButtonStyle = () => {
+    const style: React.CSSProperties = {
+      color: "white",
+    };
+
+    if (branding.buttonStyle === "outline") {
+      style.backgroundColor = "transparent";
+      style.border = `2px solid ${accentColor}`;
+      style.color = accentColor;
+    } else if (branding.buttonStyle === "gradient") {
+      style.background = `linear-gradient(135deg, ${accentColor}, ${adjustColor(accentColor, -20)})`;
+    } else {
+      style.backgroundColor = accentColor;
+    }
+
+    return style;
+  };
+
+  const getButtonRadius = () => {
+    const radiusMap = {
+      none: "rounded-none",
+      sm: "rounded-lg",
+      md: "rounded-xl",
+      lg: "rounded-2xl",
+      full: "rounded-full",
+    };
+    return radiusMap[branding.buttonRadius || "lg"];
+  };
+
+  // Card styles
+  const getCardStyle = () => {
+    if (branding.cardStyle === "glass") {
+      return isDark
+        ? "bg-white/10 backdrop-blur-md border border-white/20"
+        : "bg-black/5 backdrop-blur-md border border-black/10";
+    } else if (branding.cardStyle === "transparent") {
+      return "bg-transparent";
+    } else {
+      return isDark
+        ? "bg-zinc-900 hover:bg-zinc-800"
+        : "bg-white hover:bg-zinc-100 border border-zinc-200";
+    }
+  };
 
   return (
     <div
-      className={`min-h-screen flex flex-col items-center justify-center p-6 ${
-        isDark ? "bg-zinc-950 text-white" : "bg-zinc-50 text-zinc-900"
-      }`}
+      className="min-h-screen flex flex-col items-center justify-center p-6"
+      style={getBackgroundStyle()}
     >
       <div className="w-full max-w-md">
+        {/* Company Logo - Top */}
+        {branding.logoUrl && branding.logoPosition !== "bottom" && (
+          <div className="flex justify-center mb-8">
+            <img
+              src={branding.logoUrl}
+              alt="Company logo"
+              className="h-10 object-contain"
+            />
+          </div>
+        )}
+
         {/* Profile Photo */}
         {profile.photoUrl && (
           <div className="flex justify-center mb-6">
@@ -137,14 +217,25 @@ export default function CardProfilePage({ params }: PageProps) {
 
         {/* Name & Title */}
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold mb-1">{profile.displayName}</h1>
+          <h1
+            className="text-3xl font-bold mb-1"
+            style={{ color: textColor }}
+          >
+            {profile.displayName}
+          </h1>
           {profile.title && (
-            <p className={`text-lg ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
+            <p
+              className="text-lg"
+              style={{ color: secondaryTextColor }}
+            >
               {profile.title}
             </p>
           )}
           {profile.company && (
-            <p className={`text-base ${isDark ? "text-zinc-500" : "text-zinc-500"}`}>
+            <p
+              className="text-base"
+              style={{ color: secondaryTextColor }}
+            >
               {profile.company}
             </p>
           )}
@@ -153,7 +244,8 @@ export default function CardProfilePage({ params }: PageProps) {
         {/* Bio */}
         {profile.bio && (
           <p
-            className={`text-center mb-8 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}
+            className="text-center mb-8"
+            style={{ color: secondaryTextColor }}
           >
             {profile.bio}
           </p>
@@ -162,8 +254,8 @@ export default function CardProfilePage({ params }: PageProps) {
         {/* Save Contact CTA */}
         <button
           onClick={handleSaveContact}
-          className="w-full py-4 px-6 rounded-2xl font-semibold text-lg mb-8 flex items-center justify-center gap-3 transition-transform active:scale-95"
-          style={{ backgroundColor: accentColor, color: "white" }}
+          className={`w-full py-4 px-6 font-semibold text-lg mb-8 flex items-center justify-center gap-3 transition-all active:scale-95 ${getButtonRadius()}`}
+          style={getButtonStyle()}
         >
           <Download className="w-5 h-5" />
           Salva Contatto
@@ -174,27 +266,19 @@ export default function CardProfilePage({ params }: PageProps) {
           {profile.phone && (
             <a
               href={`tel:${profile.phone}`}
-              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${
-                isDark
-                  ? "bg-zinc-900 hover:bg-zinc-800"
-                  : "bg-white hover:bg-zinc-100 border border-zinc-200"
-              }`}
+              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${getCardStyle()}`}
             >
               <Phone className="w-5 h-5" style={{ color: accentColor }} />
-              <span>{profile.phone}</span>
+              <span style={{ color: textColor }}>{profile.phone}</span>
             </a>
           )}
           {profile.contactEmail && (
             <a
               href={`mailto:${profile.contactEmail}`}
-              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${
-                isDark
-                  ? "bg-zinc-900 hover:bg-zinc-800"
-                  : "bg-white hover:bg-zinc-100 border border-zinc-200"
-              }`}
+              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${getCardStyle()}`}
             >
               <Mail className="w-5 h-5" style={{ color: accentColor }} />
-              <span>{profile.contactEmail}</span>
+              <span style={{ color: textColor }}>{profile.contactEmail}</span>
             </a>
           )}
           {profile.website && (
@@ -202,29 +286,23 @@ export default function CardProfilePage({ params }: PageProps) {
               href={profile.website}
               target="_blank"
               rel="noopener noreferrer"
-              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${
-                isDark
-                  ? "bg-zinc-900 hover:bg-zinc-800"
-                  : "bg-white hover:bg-zinc-100 border border-zinc-200"
-              }`}
+              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${getCardStyle()}`}
             >
               <Globe className="w-5 h-5" style={{ color: accentColor }} />
-              <span>{profile.website.replace(/^https?:\/\//, "")}</span>
+              <span style={{ color: textColor }}>{profile.website.replace(/^https?:\/\//, "")}</span>
             </a>
           )}
         </div>
 
         {/* Social Links */}
-        {profile.socials && (
-          <div className="flex justify-center gap-4">
+        {profile.socials && Object.values(profile.socials).some(Boolean) && (
+          <div className="flex justify-center gap-4 flex-wrap">
             {profile.socials.linkedin && (
               <a
                 href={profile.socials.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${
-                  isDark ? "bg-zinc-900 hover:bg-zinc-800" : "bg-white hover:bg-zinc-100 border border-zinc-200"
-                }`}
+                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
               >
                 <Linkedin className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -234,9 +312,7 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${
-                  isDark ? "bg-zinc-900 hover:bg-zinc-800" : "bg-white hover:bg-zinc-100 border border-zinc-200"
-                }`}
+                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
               >
                 <Instagram className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -246,9 +322,7 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.twitter}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${
-                  isDark ? "bg-zinc-900 hover:bg-zinc-800" : "bg-white hover:bg-zinc-100 border border-zinc-200"
-                }`}
+                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
               >
                 <Twitter className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -258,9 +332,7 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${
-                  isDark ? "bg-zinc-900 hover:bg-zinc-800" : "bg-white hover:bg-zinc-100 border border-zinc-200"
-                }`}
+                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
               >
                 <Github className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -270,9 +342,7 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.youtube}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${
-                  isDark ? "bg-zinc-900 hover:bg-zinc-800" : "bg-white hover:bg-zinc-100 border border-zinc-200"
-                }`}
+                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
               >
                 <Youtube className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -282,11 +352,12 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.tiktok}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${
-                  isDark ? "bg-zinc-900 hover:bg-zinc-800" : "bg-white hover:bg-zinc-100 border border-zinc-200"
-                }`}
+                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
               >
-                <span className="w-6 h-6 flex items-center justify-center font-bold" style={{ color: accentColor }}>
+                <span
+                  className="w-6 h-6 flex items-center justify-center font-bold text-sm"
+                  style={{ color: accentColor }}
+                >
                   TT
                 </span>
               </a>
@@ -294,11 +365,35 @@ export default function CardProfilePage({ params }: PageProps) {
           </div>
         )}
 
+        {/* Company Logo - Bottom */}
+        {branding.logoUrl && branding.logoPosition === "bottom" && (
+          <div className="flex justify-center mt-8">
+            <img
+              src={branding.logoUrl}
+              alt="Company logo"
+              className="h-8 object-contain opacity-80"
+            />
+          </div>
+        )}
+
         {/* Footer */}
-        <p className={`text-center text-sm mt-12 ${isDark ? "text-zinc-600" : "text-zinc-400"}`}>
+        <p
+          className="text-center text-sm mt-12 opacity-50"
+          style={{ color: secondaryTextColor }}
+        >
           Powered by <span className="font-semibold">Sempery</span>
         </p>
       </div>
     </div>
   );
+}
+
+// Helper function to adjust color brightness
+function adjustColor(color: string, amount: number): string {
+  const hex = color.replace("#", "");
+  const num = parseInt(hex, 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amount));
+  const b = Math.min(255, Math.max(0, (num & 0x0000ff) + amount));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }

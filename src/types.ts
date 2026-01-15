@@ -22,6 +22,18 @@ export type Profile = {
   };
   theme?: "light" | "dark";
   accentColor?: string;
+  branding?: {
+    backgroundColor?: string;
+    backgroundGradient?: string;
+    backgroundImageUrl?: string;
+    logoUrl?: string;
+    logoPosition?: "top" | "bottom";
+    textColor?: string;
+    secondaryTextColor?: string;
+    buttonStyle?: "solid" | "outline" | "gradient";
+    buttonRadius?: "none" | "sm" | "md" | "lg" | "full";
+    cardStyle?: "solid" | "glass" | "transparent";
+  };
 };
 
 export type Card = {

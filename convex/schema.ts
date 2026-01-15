@@ -31,7 +31,21 @@ export default defineSchema({
 
     // Appearance
     theme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
-    accentColor: v.optional(v.string()), // hex color
+    accentColor: v.optional(v.string()), // hex color for buttons/accents
+
+    // Advanced branding
+    branding: v.optional(v.object({
+      backgroundColor: v.optional(v.string()), // hex or CSS color
+      backgroundGradient: v.optional(v.string()), // CSS gradient
+      backgroundImageUrl: v.optional(v.string()), // background image
+      logoUrl: v.optional(v.string()), // company logo
+      logoPosition: v.optional(v.union(v.literal("top"), v.literal("bottom"))),
+      textColor: v.optional(v.string()), // main text color
+      secondaryTextColor: v.optional(v.string()), // subtitle/muted text
+      buttonStyle: v.optional(v.union(v.literal("solid"), v.literal("outline"), v.literal("gradient"))),
+      buttonRadius: v.optional(v.union(v.literal("none"), v.literal("sm"), v.literal("md"), v.literal("lg"), v.literal("full"))),
+      cardStyle: v.optional(v.union(v.literal("solid"), v.literal("glass"), v.literal("transparent"))),
+    })),
   })
     .index("by_slug", ["slug"]),
 
