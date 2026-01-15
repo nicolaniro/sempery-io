@@ -13,8 +13,8 @@ function escapeVCard(str: string): string {
     .replace(/\n/g, "\\n");
 }
 
-// Fetch image and convert to base64
-async function fetchImageAsBase64(url: string): Promise<string | null> {
+// Fetch image and convert to base64, returns { base64, type }
+async function fetchImageAsBase64(url: string): Promise<{ base64: string; type: string } | null> {
   try {
     console.log("Fetching image from:", url);
     const response = await fetch(url);
@@ -23,10 +23,20 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
       return null;
     }
 
+    // Detect image type from Content-Type header
+    const contentType = response.headers.get("Content-Type") || "image/jpeg";
+    let imageType = "JPEG";
+    if (contentType.includes("png")) {
+      imageType = "PNG";
+    } else if (contentType.includes("gif")) {
+      imageType = "GIF";
+    }
+    console.log("Image Content-Type:", contentType, "-> vCard type:", imageType);
+
     const arrayBuffer = await response.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
     console.log("Image converted to base64, length:", base64.length);
-    return base64;
+    return { base64, type: imageType };
   } catch (error) {
     console.error("Error fetching image:", error);
     return null;
@@ -42,6 +52,7 @@ function generateVCard(profile: {
   contactEmail?: string;
   website?: string;
   photoBase64?: string;
+  photoType?: string;
   socials?: {
     linkedin?: string;
     instagram?: string;
@@ -102,8 +113,8 @@ function generateVCard(profile: {
 
   // Photo (base64 encoded) - use iOS compatible format
   if (profile.photoBase64) {
-    // iOS prefers this format without line folding for reliability
-    lines.push(`PHOTO;ENCODING=BASE64;TYPE=JPEG:`);
+    const photoType = profile.photoType || "JPEG";
+    lines.push(`PHOTO;ENCODING=BASE64;TYPE=${photoType}:`);
     lines.push(` ${profile.photoBase64}`);
   }
 
@@ -147,12 +158,14 @@ export async function GET(
 
     // Fetch photo if available
     let photoBase64: string | undefined;
+    let photoType: string | undefined;
     console.log("Profile photoUrl:", profile.photoUrl);
     if (profile.photoUrl) {
-      const base64 = await fetchImageAsBase64(profile.photoUrl);
-      if (base64) {
-        photoBase64 = base64;
-        console.log("Photo fetched successfully, base64 length:", base64.length);
+      const imageData = await fetchImageAsBase64(profile.photoUrl);
+      if (imageData) {
+        photoBase64 = imageData.base64;
+        photoType = imageData.type;
+        console.log("Photo fetched successfully, type:", photoType, "base64 length:", photoBase64.length);
       } else {
         console.log("Failed to fetch photo");
       }
@@ -169,6 +182,7 @@ export async function GET(
       contactEmail: profile.contactEmail,
       website: profile.website,
       photoBase64,
+      photoType,
       socials: profile.socials,
     });
 
