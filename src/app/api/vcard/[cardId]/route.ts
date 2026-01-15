@@ -4,6 +4,15 @@ import { api } from "@convex/_generated/api";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
+// Escape special characters for vCard
+function escapeVCard(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;")
+    .replace(/\n/g, "\\n");
+}
+
 // Generate vCard string from profile data
 function generateVCard(profile: {
   displayName: string;
@@ -22,47 +31,52 @@ function generateVCard(profile: {
   const lines: string[] = [
     "BEGIN:VCARD",
     "VERSION:3.0",
-    `FN:${profile.displayName}`,
+    "PRODID:-//Sempery//Digital Card//EN",
   ];
 
-  // Parse name for N field
+  // FN is required
+  lines.push(`FN:${escapeVCard(profile.displayName)}`);
+
+  // Parse name for N field (required for iOS)
   const nameParts = profile.displayName.trim().split(" ");
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ") || "";
-  lines.push(`N:${lastName};${firstName};;;`);
+  lines.push(`N:${escapeVCard(lastName)};${escapeVCard(firstName)};;;`);
 
   if (profile.title) {
-    lines.push(`TITLE:${profile.title}`);
+    lines.push(`TITLE:${escapeVCard(profile.title)}`);
   }
 
   if (profile.company) {
-    lines.push(`ORG:${profile.company}`);
+    lines.push(`ORG:${escapeVCard(profile.company)}`);
   }
 
   if (profile.phone) {
-    lines.push(`TEL;TYPE=CELL:${profile.phone}`);
+    // Clean phone number - remove spaces and special chars for better compatibility
+    const cleanPhone = profile.phone.replace(/[^\d+]/g, "");
+    lines.push(`TEL;TYPE=CELL:${cleanPhone}`);
   }
 
   if (profile.contactEmail) {
-    lines.push(`EMAIL:${profile.contactEmail}`);
+    lines.push(`EMAIL;TYPE=INTERNET:${profile.contactEmail}`);
   }
 
   if (profile.website) {
     lines.push(`URL:${profile.website}`);
   }
 
-  // Social profiles as URLs
+  // Social profiles using X-SOCIALPROFILE (iOS standard)
   if (profile.socials?.linkedin) {
-    lines.push(`URL;TYPE=LinkedIn:${profile.socials.linkedin}`);
+    lines.push(`X-SOCIALPROFILE;TYPE=linkedin:${profile.socials.linkedin}`);
   }
   if (profile.socials?.instagram) {
-    lines.push(`URL;TYPE=Instagram:${profile.socials.instagram}`);
+    lines.push(`X-SOCIALPROFILE;TYPE=instagram:${profile.socials.instagram}`);
   }
   if (profile.socials?.twitter) {
-    lines.push(`URL;TYPE=Twitter:${profile.socials.twitter}`);
+    lines.push(`X-SOCIALPROFILE;TYPE=twitter:${profile.socials.twitter}`);
   }
   if (profile.socials?.github) {
-    lines.push(`URL;TYPE=GitHub:${profile.socials.github}`);
+    lines.push(`X-SOCIALPROFILE;TYPE=github:${profile.socials.github}`);
   }
 
   lines.push("END:VCARD");

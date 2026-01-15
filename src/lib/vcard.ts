@@ -14,55 +14,68 @@ interface VCardData {
   };
 }
 
+// Escape special characters for vCard
+function escapeVCard(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;")
+    .replace(/\n/g, "\\n");
+}
+
 export function generateVCard(data: VCardData): string {
   const lines: string[] = [
     "BEGIN:VCARD",
     "VERSION:3.0",
-    `FN:${data.displayName}`,
+    "PRODID:-//Sempery//Digital Card//EN",
   ];
 
-  // Parse name for N field (simplified)
+  // FN is required
+  lines.push(`FN:${escapeVCard(data.displayName)}`);
+
+  // Parse name for N field (required for iOS)
   const nameParts = data.displayName.trim().split(" ");
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ") || "";
-  lines.push(`N:${lastName};${firstName};;;`);
+  lines.push(`N:${escapeVCard(lastName)};${escapeVCard(firstName)};;;`);
 
   if (data.title) {
-    lines.push(`TITLE:${data.title}`);
+    lines.push(`TITLE:${escapeVCard(data.title)}`);
   }
 
   if (data.company) {
-    lines.push(`ORG:${data.company}`);
+    lines.push(`ORG:${escapeVCard(data.company)}`);
   }
 
   if (data.phone) {
-    lines.push(`TEL;TYPE=CELL:${data.phone}`);
+    // Clean phone number for better compatibility
+    const cleanPhone = data.phone.replace(/[^\d+]/g, "");
+    lines.push(`TEL;TYPE=CELL:${cleanPhone}`);
   }
 
   if (data.email) {
-    lines.push(`EMAIL:${data.email}`);
+    lines.push(`EMAIL;TYPE=INTERNET:${data.email}`);
   }
 
   if (data.website) {
     lines.push(`URL:${data.website}`);
   }
 
-  // Social profiles as URLs
+  // Social profiles using X-SOCIALPROFILE (iOS standard)
   if (data.socials?.linkedin) {
-    lines.push(`URL;TYPE=LinkedIn:${data.socials.linkedin}`);
+    lines.push(`X-SOCIALPROFILE;TYPE=linkedin:${data.socials.linkedin}`);
   }
   if (data.socials?.instagram) {
-    lines.push(`URL;TYPE=Instagram:${data.socials.instagram}`);
+    lines.push(`X-SOCIALPROFILE;TYPE=instagram:${data.socials.instagram}`);
   }
   if (data.socials?.twitter) {
-    lines.push(`URL;TYPE=Twitter:${data.socials.twitter}`);
+    lines.push(`X-SOCIALPROFILE;TYPE=twitter:${data.socials.twitter}`);
   }
   if (data.socials?.github) {
-    lines.push(`URL;TYPE=GitHub:${data.socials.github}`);
+    lines.push(`X-SOCIALPROFILE;TYPE=github:${data.socials.github}`);
   }
 
   // Photo (Base64 encoded)
-  // Important: For iOS to show the photo, it needs to be properly formatted
   if (data.photoBase64) {
     // Split base64 into 75-char lines for vCard compliance
     const photoLines = data.photoBase64.match(/.{1,75}/g) || [];
