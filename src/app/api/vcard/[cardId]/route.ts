@@ -142,9 +142,21 @@ export async function GET(
 
   try {
     // Fetch card from Convex
+    console.log("Fetching card with cardId:", cardId);
     const card = await convex.query(api.cards.getByCardId, { cardId });
+    console.log("Card result:", card);
 
     if (!card || !card.isActive) {
+      // Debug: return more info about why it failed
+      if (debug) {
+        return NextResponse.json({
+          error: "Card not found or inactive",
+          cardId,
+          cardFound: !!card,
+          isActive: card?.isActive,
+          convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL?.substring(0, 30) + "...",
+        }, { status: 404 });
+      }
       return NextResponse.json(
         { error: "Card not found or inactive" },
         { status: 404 }
