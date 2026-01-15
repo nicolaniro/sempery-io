@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@convex/_generated/api";
+import sharp from "sharp";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -13,7 +14,8 @@ function escapeVCard(str: string): string {
     .replace(/\n/g, "\\n");
 }
 
-// Fetch image and convert to base64, returns { base64, type }
+// Fetch image, resize it, and convert to base64
+// vCard photos should be small (< 100KB) for iOS compatibility
 async function fetchImageAsBase64(url: string): Promise<{ base64: string; type: string } | null> {
   try {
     console.log("Fetching image from:", url);
@@ -23,22 +25,27 @@ async function fetchImageAsBase64(url: string): Promise<{ base64: string; type: 
       return null;
     }
 
-    // Detect image type from Content-Type header
-    const contentType = response.headers.get("Content-Type") || "image/jpeg";
-    let imageType = "JPEG";
-    if (contentType.includes("png")) {
-      imageType = "PNG";
-    } else if (contentType.includes("gif")) {
-      imageType = "GIF";
-    }
-    console.log("Image Content-Type:", contentType, "-> vCard type:", imageType);
-
     const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-    console.log("Image converted to base64, length:", base64.length);
-    return { base64, type: imageType };
+    const inputBuffer = Buffer.from(arrayBuffer);
+    console.log("Original image size:", inputBuffer.length);
+
+    // Resize and convert to JPEG for best iOS compatibility
+    // Max 400x400 pixels, quality 80 - keeps file small
+    const resizedBuffer = await sharp(inputBuffer)
+      .resize(400, 400, {
+        fit: "cover",
+        position: "center",
+      })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+
+    const base64 = resizedBuffer.toString("base64");
+    console.log("Resized image base64 length:", base64.length);
+
+    // Always return JPEG since we convert to JPEG
+    return { base64, type: "JPEG" };
   } catch (error) {
-    console.error("Error fetching image:", error);
+    console.error("Error fetching/resizing image:", error);
     return null;
   }
 }
