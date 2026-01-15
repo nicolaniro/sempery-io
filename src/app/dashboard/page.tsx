@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const createProfile = useMutation(api.profiles.create);
   const updateProfile = useMutation(api.profiles.update);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+  const getFileUrl = useMutation(api.files.getUrlMutation);
 
   const [selectedProfileId, setSelectedProfileId] = useState<Id<"profiles"> | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -161,8 +162,10 @@ export default function DashboardPage() {
 
       const { storageId } = await result.json();
 
-      // Get the public URL
-      const publicUrl = `https://fortunate-dachshund-583.convex.cloud/api/storage/${storageId}`;
+      // Get the actual public URL from Convex
+      const publicUrl = await getFileUrl({ storageId });
+
+      if (!publicUrl) throw new Error("Failed to get file URL");
 
       setForm({ ...form, [field]: publicUrl });
       setSuccess("Immagine caricata!");
