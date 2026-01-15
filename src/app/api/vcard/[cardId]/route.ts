@@ -141,20 +141,28 @@ export async function GET(
   }
 
   try {
-    // Fetch card from Convex
-    console.log("Fetching card with cardId:", cardId);
-    const card = await convex.query(api.cards.getByCardId, { cardId });
-    console.log("Card result:", card);
+    // Try to fetch card by cardId first
+    let card = await convex.query(api.cards.getByCardId, { cardId });
+    let profile = null;
+
+    // If card not found, try to find profile by slug and get its card
+    if (!card) {
+      profile = await convex.query(api.profiles.getBySlug, { slug: cardId });
+      if (profile) {
+        // Get the card for this profile
+        const cards = await convex.query(api.cards.getByProfileId, { profileId: profile._id });
+        card = cards?.find((c: { isActive: boolean }) => c.isActive) || cards?.[0];
+      }
+    }
 
     if (!card || !card.isActive) {
-      // Debug: return more info about why it failed
       if (debug) {
         return NextResponse.json({
           error: "Card not found or inactive",
           cardId,
           cardFound: !!card,
+          profileFoundBySlug: !!profile,
           isActive: card?.isActive,
-          convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL?.substring(0, 30) + "...",
         }, { status: 404 });
       }
       return NextResponse.json(
@@ -163,10 +171,12 @@ export async function GET(
       );
     }
 
-    // Fetch profile from Convex
-    const profile = await convex.query(api.profiles.getById, {
-      id: card.profileId,
-    });
+    // Fetch profile if not already fetched
+    if (!profile) {
+      profile = await convex.query(api.profiles.getById, {
+        id: card.profileId,
+      });
+    }
 
     if (!profile) {
       return NextResponse.json(

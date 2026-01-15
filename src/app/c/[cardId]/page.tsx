@@ -30,14 +30,30 @@ export default function CardProfilePage({ params }: PageProps) {
     params.then((p) => setCardId(p.cardId));
   }, [params]);
 
-  const card = useQuery(
+  // Try to find card by cardId
+  const cardByCardId = useQuery(
     api.cards.getByCardId,
     cardId ? { cardId } : "skip"
   );
+
+  // If not found, try to find profile by slug
+  const profileBySlug = useQuery(
+    api.profiles.getBySlug,
+    cardId && !cardByCardId ? { slug: cardId } : "skip"
+  );
+
+  // Get cards for profile found by slug
+  const cardsByProfile = useQuery(
+    api.cards.getByProfileId,
+    profileBySlug?._id ? { profileId: profileBySlug._id } : "skip"
+  );
+
+  // Determine final card and profile
+  const card = cardByCardId || cardsByProfile?.find((c) => c.isActive) || cardsByProfile?.[0];
   const profile = useQuery(
     api.profiles.getById,
-    card?.profileId ? { id: card.profileId } : "skip"
-  );
+    cardByCardId?.profileId ? { id: cardByCardId.profileId } : "skip"
+  ) || profileBySlug;
   const recordTap = useMutation(api.cards.recordTap);
 
   // Record tap on first load
