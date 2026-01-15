@@ -75,14 +75,10 @@ export function generateVCard(data: VCardData): string {
     lines.push(`X-SOCIALPROFILE;TYPE=github:${data.socials.github}`);
   }
 
-  // Photo (Base64 encoded)
+  // Photo (Base64 encoded) - iOS compatible format
   if (data.photoBase64) {
-    // Split base64 into 75-char lines for vCard compliance
-    const photoLines = data.photoBase64.match(/.{1,75}/g) || [];
-    lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${photoLines[0]}`);
-    for (let i = 1; i < photoLines.length; i++) {
-      lines.push(` ${photoLines[i]}`);
-    }
+    lines.push(`PHOTO;ENCODING=BASE64;TYPE=JPEG:`);
+    lines.push(` ${data.photoBase64}`);
   }
 
   lines.push("END:VCARD");

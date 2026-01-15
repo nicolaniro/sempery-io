@@ -16,13 +16,19 @@ function escapeVCard(str: string): string {
 // Fetch image and convert to base64
 async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
+    console.log("Fetching image from:", url);
     const response = await fetch(url);
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.log("Image fetch failed:", response.status, response.statusText);
+      return null;
+    }
 
     const arrayBuffer = await response.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
+    console.log("Image converted to base64, length:", base64.length);
     return base64;
-  } catch {
+  } catch (error) {
+    console.error("Error fetching image:", error);
     return null;
   }
 }
@@ -94,13 +100,11 @@ function generateVCard(profile: {
     lines.push(`X-SOCIALPROFILE;TYPE=github:${profile.socials.github}`);
   }
 
-  // Photo (base64 encoded, split into 75-char lines for vCard compliance)
+  // Photo (base64 encoded) - use iOS compatible format
   if (profile.photoBase64) {
-    const photoLines = profile.photoBase64.match(/.{1,75}/g) || [];
-    lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${photoLines[0]}`);
-    for (let i = 1; i < photoLines.length; i++) {
-      lines.push(` ${photoLines[i]}`);
-    }
+    // iOS prefers this format without line folding for reliability
+    lines.push(`PHOTO;ENCODING=BASE64;TYPE=JPEG:`);
+    lines.push(` ${profile.photoBase64}`);
   }
 
   lines.push("END:VCARD");
@@ -143,11 +147,17 @@ export async function GET(
 
     // Fetch photo if available
     let photoBase64: string | undefined;
+    console.log("Profile photoUrl:", profile.photoUrl);
     if (profile.photoUrl) {
       const base64 = await fetchImageAsBase64(profile.photoUrl);
       if (base64) {
         photoBase64 = base64;
+        console.log("Photo fetched successfully, base64 length:", base64.length);
+      } else {
+        console.log("Failed to fetch photo");
       }
+    } else {
+      console.log("No photoUrl in profile");
     }
 
     // Generate vCard
