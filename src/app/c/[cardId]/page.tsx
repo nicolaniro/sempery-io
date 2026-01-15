@@ -16,6 +16,12 @@ import {
   Download,
 } from "lucide-react";
 
+// Convex HTTP endpoint URL for vCard download
+const CONVEX_SITE_URL = process.env.NEXT_PUBLIC_CONVEX_URL?.replace(
+  ".convex.cloud",
+  ".convex.site"
+);
+
 interface PageProps {
   params: Promise<{ cardId: string }>;
 }
@@ -46,7 +52,7 @@ export default function CardProfilePage({ params }: PageProps) {
     }
   }, [cardId, card?._id]);
 
-  // Fetch and convert photo to base64 for vCard
+  // Fetch and convert photo to base64 for vCard (for client-side fallback)
   useEffect(() => {
     if (profile?.photoUrl) {
       fetch(profile.photoUrl)
@@ -63,7 +69,13 @@ export default function CardProfilePage({ params }: PageProps) {
     }
   }, [profile?.photoUrl]);
 
-  const handleSaveContact = async () => {
+  // Server-side vCard URL (most reliable for all devices)
+  const vcardUrl = cardId && CONVEX_SITE_URL
+    ? `${CONVEX_SITE_URL}/vcard/${cardId}`
+    : null;
+
+  // Client-side fallback for when server endpoint fails
+  const handleSaveContactFallback = async () => {
     if (!profile) return;
 
     const vcard = generateVCard({
@@ -78,6 +90,18 @@ export default function CardProfilePage({ params }: PageProps) {
     });
 
     await downloadVCard(vcard, profile.displayName.replace(/\s+/g, "_"));
+  };
+
+  // Primary save contact handler - try server first, fallback to client
+  const handleSaveContact = () => {
+    if (vcardUrl) {
+      // Server-side: Just navigate to the vCard URL
+      // The browser will handle the download with proper Content-Type headers
+      window.location.href = vcardUrl;
+    } else {
+      // Fallback to client-side generation
+      handleSaveContactFallback();
+    }
   };
 
   // Loading state
