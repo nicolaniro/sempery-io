@@ -45,11 +45,11 @@ export async function POST(request: NextRequest) {
     // Get upload URL from Convex
     const uploadUrl = await convex.mutation(api.files.generateUploadUrl, {});
 
-    // Upload resized image to Convex
+    // Upload resized image to Convex (convert Buffer to Uint8Array for fetch compatibility)
     const uploadResponse = await fetch(uploadUrl, {
       method: "POST",
       headers: { "Content-Type": "image/jpeg" },
-      body: resizedBuffer,
+      body: new Uint8Array(resizedBuffer),
     });
 
     if (!uploadResponse.ok) {
