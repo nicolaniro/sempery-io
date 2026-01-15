@@ -78,13 +78,23 @@ export function generateVCard(data: VCardData): string {
 }
 
 export function downloadVCard(vcard: string, filename: string) {
-  const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${filename}.vcf`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // Check if mobile
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // For mobile: use data URL which works better with iOS/Android
+    const dataUrl = `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`;
+    window.location.href = dataUrl;
+  } else {
+    // For desktop: use blob download
+    const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${filename}.vcf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 }
