@@ -128,6 +128,8 @@ export async function GET(
   { params }: { params: Promise<{ cardId: string }> }
 ) {
   const { cardId } = await params;
+  const { searchParams } = new URL(request.url);
+  const debug = searchParams.get("debug") === "true";
 
   if (!cardId) {
     return NextResponse.json({ error: "Card ID required" }, { status: 400 });
@@ -171,6 +173,17 @@ export async function GET(
       }
     } else {
       console.log("No photoUrl in profile");
+    }
+
+    // Debug mode - return JSON with info
+    if (debug) {
+      return NextResponse.json({
+        profilePhotoUrl: profile.photoUrl,
+        photoFetched: !!photoBase64,
+        photoType,
+        photoBase64Length: photoBase64?.length || 0,
+        photoBase64Preview: photoBase64?.substring(0, 100) || null,
+      });
     }
 
     // Generate vCard
