@@ -3,7 +3,8 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useState, useEffect } from "react";
-import { Id, Profile } from "../../../convex/_generated/dataModel";
+import { Id } from "../../../convex/_generated/dataModel";
+import { Profile } from "@/types";
 import { Plus, CreditCard, Eye, Trash2 } from "lucide-react";
 
 export default function DashboardPage() {
