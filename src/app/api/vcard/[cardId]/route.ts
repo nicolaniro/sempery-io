@@ -118,10 +118,21 @@ function generateVCard(profile: {
     lines.push(`X-SOCIALPROFILE;TYPE=github:${profile.socials.github}`);
   }
 
-  // Photo (base64 encoded) - iOS vCard 3.0 format
-  // Format: PHOTO;ENCODING=b;TYPE=JPEG:base64data
+  // Photo (base64 encoded) - iOS vCard 3.0 format with proper line folding
+  // Lines > 75 chars must be folded with CRLF + space
   if (profile.photoBase64) {
-    lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${profile.photoBase64}`);
+    const photoLine = `PHOTO;ENCODING=b;TYPE=JPEG:${profile.photoBase64}`;
+    // Fold long lines at 75 characters
+    const foldedLines: string[] = [];
+    for (let i = 0; i < photoLine.length; i += 75) {
+      if (i === 0) {
+        foldedLines.push(photoLine.substring(0, 75));
+      } else {
+        // Continuation lines start with a space
+        foldedLines.push(" " + photoLine.substring(i, i + 75));
+      }
+    }
+    lines.push(foldedLines.join("\r\n"));
   }
 
   lines.push("END:VCARD");
