@@ -120,6 +120,18 @@ export const update = mutation({
     })),
     theme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
     accentColor: v.optional(v.string()),
+    branding: v.optional(v.object({
+      backgroundColor: v.optional(v.string()),
+      backgroundGradient: v.optional(v.string()),
+      backgroundImageUrl: v.optional(v.string()),
+      logoUrl: v.optional(v.string()),
+      logoPosition: v.optional(v.union(v.literal("top"), v.literal("bottom"))),
+      textColor: v.optional(v.string()),
+      secondaryTextColor: v.optional(v.string()),
+      buttonStyle: v.optional(v.union(v.literal("solid"), v.literal("outline"), v.literal("gradient"))),
+      buttonRadius: v.optional(v.union(v.literal("none"), v.literal("sm"), v.literal("md"), v.literal("lg"), v.literal("full"))),
+      cardStyle: v.optional(v.union(v.literal("solid"), v.literal("glass"), v.literal("transparent"))),
+    })),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
