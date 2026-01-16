@@ -177,8 +177,10 @@ export default function CardProfilePage({ params }: PageProps) {
     return profile.theme !== "light";
   })();
 
-  // Ensure accent color contrasts well with background
-  const accentColor = getContrastingAccent(rawAccentColor, isDark);
+  // Use raw accent for buttons (they have their own background)
+  // Use adjusted accent for icons on page background
+  const accentColor = rawAccentColor;
+  const iconColor = getContrastingAccent(rawAccentColor, isDark);
 
   // Background styles
   const getBackgroundStyle = () => {
@@ -208,8 +210,11 @@ export default function CardProfilePage({ params }: PageProps) {
 
   // Button styles
   const getButtonStyle = () => {
+    // Determine if button background is dark (for text contrast)
+    const buttonTextColor = isColorDark(accentColor) ? "#ffffff" : "#000000";
+
     const style: React.CSSProperties = {
-      color: "white",
+      color: buttonTextColor,
     };
 
     if (branding.buttonStyle === "outline") {
