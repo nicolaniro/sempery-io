@@ -14,8 +14,8 @@ import {
   Phone,
   Youtube,
   Download,
+  ExternalLink,
 } from "lucide-react";
-
 
 interface PageProps {
   params: Promise<{ cardId: string }>;
@@ -101,14 +101,11 @@ export default function CardProfilePage({ params }: PageProps) {
     await downloadVCard(vcard, profile.displayName.replace(/\s+/g, "_"));
   };
 
-  // Primary save contact handler - try server first, fallback to client
+  // Primary save contact handler
   const handleSaveContact = () => {
     if (vcardUrl) {
-      // Server-side: Just navigate to the vCard URL
-      // The browser will handle the download with proper Content-Type headers
       window.location.href = vcardUrl;
     } else {
-      // Fallback to client-side generation
       handleSaveContactFallback();
     }
   };
@@ -116,8 +113,11 @@ export default function CardProfilePage({ params }: PageProps) {
   // Loading state
   if (!cardId || card === undefined || (card && profile === undefined)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <div className="animate-pulse text-zinc-400">Caricamento...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 animate-fadeIn">
+          <div className="spinner" />
+          <p className="text-zinc-500">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -125,10 +125,13 @@ export default function CardProfilePage({ params }: PageProps) {
   // Card not found or inactive
   if (!card || !card.isActive) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">Card non trovata</h1>
-          <p className="text-zinc-400">Questa card non esiste o è stata disattivata.</p>
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="text-center glass rounded-2xl p-8 max-w-md animate-fadeIn">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <ExternalLink className="w-8 h-8 text-red-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Card Not Found</h1>
+          <p className="text-zinc-400">This card does not exist or has been deactivated.</p>
         </div>
       </div>
     );
@@ -137,10 +140,13 @@ export default function CardProfilePage({ params }: PageProps) {
   // Profile not found
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-2">Profilo non trovato</h1>
-          <p className="text-zinc-400">Il profilo associato a questa card non esiste.</p>
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="text-center glass rounded-2xl p-8 max-w-md animate-fadeIn">
+          <div className="w-16 h-16 rounded-full bg-orange-500/20 flex items-center justify-center mx-auto mb-4">
+            <ExternalLink className="w-8 h-8 text-orange-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">Profile Not Found</h1>
+          <p className="text-zinc-400">The profile associated with this card does not exist.</p>
         </div>
       </div>
     );
@@ -156,15 +162,18 @@ export default function CardProfilePage({ params }: PageProps) {
     const style: React.CSSProperties = {};
 
     if (branding.backgroundImageUrl) {
-      style.backgroundImage = `url(${branding.backgroundImageUrl})`;
+      style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url(${branding.backgroundImageUrl})`;
       style.backgroundSize = "cover";
       style.backgroundPosition = "center";
+      style.backgroundAttachment = "fixed";
     } else if (branding.backgroundGradient) {
       style.background = branding.backgroundGradient;
     } else if (branding.backgroundColor) {
       style.backgroundColor = branding.backgroundColor;
     } else {
-      style.backgroundColor = isDark ? "#09090b" : "#fafafa";
+      style.background = isDark
+        ? "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)"
+        : "linear-gradient(135deg, #fafafa 0%, #f0f0f5 100%)";
     }
 
     return style;
@@ -185,9 +194,11 @@ export default function CardProfilePage({ params }: PageProps) {
       style.border = `2px solid ${accentColor}`;
       style.color = accentColor;
     } else if (branding.buttonStyle === "gradient") {
-      style.background = `linear-gradient(135deg, ${accentColor}, ${adjustColor(accentColor, -20)})`;
+      style.background = `linear-gradient(135deg, ${accentColor}, ${adjustColor(accentColor, -30)})`;
+      style.boxShadow = `0 10px 30px ${accentColor}40`;
     } else {
       style.backgroundColor = accentColor;
+      style.boxShadow = `0 10px 30px ${accentColor}40`;
     }
 
     return style;
@@ -201,21 +212,21 @@ export default function CardProfilePage({ params }: PageProps) {
       lg: "rounded-2xl",
       full: "rounded-full",
     };
-    return radiusMap[branding.buttonRadius || "lg"];
+    return radiusMap[branding.buttonRadius || "full"];
   };
 
   // Card styles
   const getCardStyle = () => {
     if (branding.cardStyle === "glass") {
       return isDark
-        ? "bg-white/10 backdrop-blur-md border border-white/20"
-        : "bg-black/5 backdrop-blur-md border border-black/10";
+        ? "bg-white/5 backdrop-blur-xl border border-white/10"
+        : "bg-black/5 backdrop-blur-xl border border-black/10";
     } else if (branding.cardStyle === "transparent") {
       return "bg-transparent";
     } else {
       return isDark
-        ? "bg-zinc-900 hover:bg-zinc-800"
-        : "bg-white hover:bg-zinc-100 border border-zinc-200";
+        ? "bg-zinc-900/80 backdrop-blur-sm border border-white/5 hover:bg-zinc-800/80"
+        : "bg-white/80 backdrop-blur-sm border border-zinc-200 hover:bg-white";
     }
   };
 
@@ -224,41 +235,46 @@ export default function CardProfilePage({ params }: PageProps) {
       className="min-h-screen flex flex-col items-center justify-center p-6"
       style={getBackgroundStyle()}
     >
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md animate-fadeIn">
         {/* Company Logo - Top */}
         {branding.logoUrl && branding.logoPosition !== "bottom" && (
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center mb-10 animate-fadeIn" style={{ animationDelay: "0.1s" }}>
             <img
               src={branding.logoUrl}
               alt="Company logo"
-              className="h-10 object-contain"
+              className="h-12 object-contain drop-shadow-lg"
             />
           </div>
         )}
 
         {/* Profile Photo */}
         {profile.photoUrl && (
-          <div className="flex justify-center mb-6">
-            <img
-              src={profile.photoUrl}
-              alt={profile.displayName}
-              className="w-32 h-32 rounded-full object-cover ring-4"
-              style={{ ["--tw-ring-color" as string]: accentColor }}
-            />
+          <div className="flex justify-center mb-8 animate-fadeIn" style={{ animationDelay: "0.15s" }}>
+            <div className="relative">
+              <div
+                className="absolute inset-0 rounded-full blur-2xl opacity-50"
+                style={{ backgroundColor: accentColor }}
+              />
+              <img
+                src={profile.photoUrl}
+                alt={profile.displayName}
+                className="relative w-36 h-36 rounded-full object-cover ring-4 ring-white/20 shadow-2xl"
+              />
+            </div>
           </div>
         )}
 
         {/* Name & Title */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-8 animate-fadeIn" style={{ animationDelay: "0.2s" }}>
           <h1
-            className="text-3xl font-bold mb-1"
+            className="text-4xl font-bold mb-2 tracking-tight"
             style={{ color: textColor }}
           >
             {profile.displayName}
           </h1>
           {profile.title && (
             <p
-              className="text-lg"
+              className="text-xl font-medium"
               style={{ color: secondaryTextColor }}
             >
               {profile.title}
@@ -266,8 +282,8 @@ export default function CardProfilePage({ params }: PageProps) {
           )}
           {profile.company && (
             <p
-              className="text-base"
-              style={{ color: secondaryTextColor }}
+              className="text-lg mt-1"
+              style={{ color: secondaryTextColor, opacity: 0.8 }}
             >
               {profile.company}
             </p>
@@ -277,8 +293,8 @@ export default function CardProfilePage({ params }: PageProps) {
         {/* Bio */}
         {profile.bio && (
           <p
-            className="text-center mb-8"
-            style={{ color: secondaryTextColor }}
+            className="text-center mb-10 leading-relaxed animate-fadeIn"
+            style={{ color: secondaryTextColor, animationDelay: "0.25s" }}
           >
             {profile.bio}
           </p>
@@ -287,31 +303,43 @@ export default function CardProfilePage({ params }: PageProps) {
         {/* Save Contact CTA */}
         <button
           onClick={handleSaveContact}
-          className={`w-full py-4 px-6 font-semibold text-lg mb-8 flex items-center justify-center gap-3 transition-all active:scale-95 ${getButtonRadius()}`}
-          style={getButtonStyle()}
+          className={`w-full py-4 px-8 font-semibold text-lg mb-10 flex items-center justify-center gap-3 transition-all active:scale-[0.98] btn-transition ${getButtonRadius()} animate-fadeIn`}
+          style={{ ...getButtonStyle(), animationDelay: "0.3s" }}
         >
           <Download className="w-5 h-5" />
-          Salva Contatto
+          Save Contact
         </button>
 
         {/* Contact Info */}
-        <div className="space-y-3 mb-8">
+        <div className="space-y-3 mb-10">
           {profile.phone && (
             <a
               href={`tel:${profile.phone}`}
-              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${getCardStyle()}`}
+              className={`flex items-center gap-4 p-4 rounded-2xl transition-all btn-transition animate-fadeIn ${getCardStyle()}`}
+              style={{ animationDelay: "0.35s" }}
             >
-              <Phone className="w-5 h-5" style={{ color: accentColor }} />
-              <span style={{ color: textColor }}>{profile.phone}</span>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: `${accentColor}20` }}
+              >
+                <Phone className="w-5 h-5" style={{ color: accentColor }} />
+              </div>
+              <span className="font-medium" style={{ color: textColor }}>{profile.phone}</span>
             </a>
           )}
           {profile.contactEmail && (
             <a
               href={`mailto:${profile.contactEmail}`}
-              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${getCardStyle()}`}
+              className={`flex items-center gap-4 p-4 rounded-2xl transition-all btn-transition animate-fadeIn ${getCardStyle()}`}
+              style={{ animationDelay: "0.4s" }}
             >
-              <Mail className="w-5 h-5" style={{ color: accentColor }} />
-              <span style={{ color: textColor }}>{profile.contactEmail}</span>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: `${accentColor}20` }}
+              >
+                <Mail className="w-5 h-5" style={{ color: accentColor }} />
+              </div>
+              <span className="font-medium" style={{ color: textColor }}>{profile.contactEmail}</span>
             </a>
           )}
           {profile.website && (
@@ -319,23 +347,32 @@ export default function CardProfilePage({ params }: PageProps) {
               href={profile.website}
               target="_blank"
               rel="noopener noreferrer"
-              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${getCardStyle()}`}
+              className={`flex items-center gap-4 p-4 rounded-2xl transition-all btn-transition animate-fadeIn ${getCardStyle()}`}
+              style={{ animationDelay: "0.45s" }}
             >
-              <Globe className="w-5 h-5" style={{ color: accentColor }} />
-              <span style={{ color: textColor }}>{profile.website.replace(/^https?:\/\//, "")}</span>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: `${accentColor}20` }}
+              >
+                <Globe className="w-5 h-5" style={{ color: accentColor }} />
+              </div>
+              <span className="font-medium" style={{ color: textColor }}>
+                {profile.website.replace(/^https?:\/\//, "")}
+              </span>
             </a>
           )}
         </div>
 
         {/* Social Links */}
         {profile.socials && Object.values(profile.socials).some(Boolean) && (
-          <div className="flex justify-center gap-4 flex-wrap">
+          <div className="flex justify-center gap-3 flex-wrap animate-fadeIn" style={{ animationDelay: "0.5s" }}>
             {profile.socials.linkedin && (
               <a
                 href={profile.socials.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
+                className={`p-4 rounded-2xl transition-all btn-transition ${getCardStyle()}`}
+                title="LinkedIn"
               >
                 <Linkedin className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -345,7 +382,8 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
+                className={`p-4 rounded-2xl transition-all btn-transition ${getCardStyle()}`}
+                title="Instagram"
               >
                 <Instagram className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -355,7 +393,8 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.twitter}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
+                className={`p-4 rounded-2xl transition-all btn-transition ${getCardStyle()}`}
+                title="Twitter/X"
               >
                 <Twitter className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -365,7 +404,8 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
+                className={`p-4 rounded-2xl transition-all btn-transition ${getCardStyle()}`}
+                title="GitHub"
               >
                 <Github className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -375,7 +415,8 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.youtube}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
+                className={`p-4 rounded-2xl transition-all btn-transition ${getCardStyle()}`}
+                title="YouTube"
               >
                 <Youtube className="w-6 h-6" style={{ color: accentColor }} />
               </a>
@@ -385,7 +426,8 @@ export default function CardProfilePage({ params }: PageProps) {
                 href={profile.socials.tiktok}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-3 rounded-full transition-colors ${getCardStyle()}`}
+                className={`p-4 rounded-2xl transition-all btn-transition ${getCardStyle()}`}
+                title="TikTok"
               >
                 <span
                   className="w-6 h-6 flex items-center justify-center font-bold text-sm"
@@ -400,19 +442,19 @@ export default function CardProfilePage({ params }: PageProps) {
 
         {/* Company Logo - Bottom */}
         {branding.logoUrl && branding.logoPosition === "bottom" && (
-          <div className="flex justify-center mt-8">
+          <div className="flex justify-center mt-12 animate-fadeIn" style={{ animationDelay: "0.55s" }}>
             <img
               src={branding.logoUrl}
               alt="Company logo"
-              className="h-8 object-contain opacity-80"
+              className="h-10 object-contain opacity-70"
             />
           </div>
         )}
 
         {/* Footer */}
         <p
-          className="text-center text-sm mt-12 opacity-50"
-          style={{ color: secondaryTextColor }}
+          className="text-center text-sm mt-16 opacity-40 animate-fadeIn"
+          style={{ color: secondaryTextColor, animationDelay: "0.6s" }}
         >
           Powered by <span className="font-semibold">Sempery</span>
         </p>
