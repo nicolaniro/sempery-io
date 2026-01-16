@@ -32,7 +32,9 @@ export async function POST(request: NextRequest) {
     console.log("Original image size:", inputBuffer.length);
 
     // Resize and optimize with sharp
+    // .rotate() auto-rotates based on EXIF orientation data
     const resizedBuffer = await sharp(inputBuffer)
+      .rotate() // Auto-rotate based on EXIF orientation
       .resize(maxSize, maxSize, {
         fit: "inside",           // Keep aspect ratio, fit within bounds
         withoutEnlargement: true // Don't upscale small images

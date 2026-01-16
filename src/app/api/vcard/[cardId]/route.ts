@@ -31,7 +31,9 @@ async function fetchImageAsBase64(url: string): Promise<{ base64: string; type: 
 
     // Resize and convert to JPEG for best iOS compatibility
     // Max 400x400 pixels, quality 80 - keeps file small
+    // .rotate() auto-rotates based on EXIF orientation data
     const resizedBuffer = await sharp(inputBuffer)
+      .rotate() // Auto-rotate based on EXIF orientation
       .resize(400, 400, {
         fit: "cover",
         position: "center",
