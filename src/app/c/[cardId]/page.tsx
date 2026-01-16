@@ -154,8 +154,31 @@ export default function CardProfilePage({ params }: PageProps) {
 
   // Extract branding settings
   const branding = profile.branding || {};
-  const isDark = profile.theme !== "light";
-  const accentColor = profile.accentColor || "#10b981";
+  const rawAccentColor = profile.accentColor || "#10b981";
+
+  // Smart dark/light detection based on actual background
+  const isDark = (() => {
+    // If user set a custom background color, analyze it
+    if (branding.backgroundColor) {
+      return isColorDark(branding.backgroundColor);
+    }
+    // If user set a gradient, try to extract and analyze the first color
+    if (branding.backgroundGradient) {
+      const gradientColor = extractColorFromGradient(branding.backgroundGradient);
+      if (gradientColor) {
+        return isColorDark(gradientColor);
+      }
+    }
+    // If user set a background image, assume dark (overlay is applied)
+    if (branding.backgroundImageUrl) {
+      return true;
+    }
+    // Fall back to theme setting
+    return profile.theme !== "light";
+  })();
+
+  // Ensure accent color contrasts well with background
+  const accentColor = getContrastingAccent(rawAccentColor, isDark);
 
   // Background styles
   const getBackgroundStyle = () => {
@@ -471,4 +494,50 @@ function adjustColor(color: string, amount: number): string {
   const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amount));
   const b = Math.min(255, Math.max(0, (num & 0x0000ff) + amount));
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
+// Calculate relative luminance of a color (0 = black, 1 = white)
+function getLuminance(color: string): number {
+  const hex = color.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+  // Convert to linear RGB
+  const rLin = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+  const gLin = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+  const bLin = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+
+  // Calculate luminance
+  return 0.2126 * rLin + 0.7152 * gLin + 0.0722 * bLin;
+}
+
+// Determine if a background color is dark (needs light text)
+function isColorDark(color: string): boolean {
+  try {
+    return getLuminance(color) < 0.5;
+  } catch {
+    return true; // Default to dark if parsing fails
+  }
+}
+
+// Extract dominant color from gradient string
+function extractColorFromGradient(gradient: string): string | null {
+  const colorMatch = gradient.match(/#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3}/);
+  return colorMatch ? colorMatch[0] : null;
+}
+
+// Ensure accent color has enough contrast with background
+function getContrastingAccent(accentColor: string, isDarkBg: boolean): string {
+  const accentLuminance = getLuminance(accentColor);
+
+  // If dark background and dark accent, lighten it
+  if (isDarkBg && accentLuminance < 0.3) {
+    return adjustColor(accentColor, 80);
+  }
+  // If light background and light accent, darken it
+  if (!isDarkBg && accentLuminance > 0.7) {
+    return adjustColor(accentColor, -80);
+  }
+  return accentColor;
 }
